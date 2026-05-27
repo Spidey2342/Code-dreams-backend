@@ -8,12 +8,12 @@ const router = Router();
 // ── POST /api/payments/initialize ──
 router.post("/initialize", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { plan } = req.body; // "monthly" or "yearly"
+    const { plan } = req.body;
 
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
     if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
-    const amount = plan === "yearly" ? 60000 : 8000; // GHS in pesewas (600 = GHS 6.00)
+    const amount = plan === "yearly" ? 60000 : 8000;
     const reference = `codepath_${req.userId}_${Date.now()}`;
 
     const response = await fetch("https://api.paystack.co/transaction/initialize", {
@@ -27,22 +27,18 @@ router.post("/initialize", requireAuth, async (req: AuthRequest, res: Response) 
         amount,
         reference,
         currency: "GHS",
-        metadata: {
-          userId: req.userId,
-          plan,
-        },
+        metadata: { userId: req.userId, plan },
         callback_url: `${process.env.FRONTEND_URL}/payment/success`,
       }),
     });
 
-    const data = await response.json();
+    const data = await response.json() as any;
 
     if (!data.status) {
       res.status(400).json({ error: data.message });
       return;
     }
 
-    // Save pending payment
     await prisma.payment.create({
       data: {
         userId: req.userId!,
@@ -72,19 +68,17 @@ router.post("/webhook", async (req, res: Response) => {
       return;
     }
 
-    const { event, data } = req.body;
+    const { event, data } = req.body as any;
 
     if (event === "charge.success") {
       const { reference, metadata } = data;
       const { userId } = metadata;
 
-      // Update payment status
       await prisma.payment.update({
         where: { paystackRef: reference },
         data: { status: "success" },
       });
 
-      // Upgrade user to pro
       await prisma.user.update({
         where: { id: userId },
         data: { isPro: true },
@@ -110,7 +104,7 @@ router.get("/verify/:reference", requireAuth, async (req: AuthRequest, res: Resp
       { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } }
     );
 
-    const data = await response.json();
+    const data = await response.json() as any;
 
     if (data.data?.status === "success") {
       await prisma.user.update({
