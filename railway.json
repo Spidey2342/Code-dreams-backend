@@ -1,0 +1,9 @@
+{
+  "build": {
+    "builder": "NIXPACKS"
+  },
+  "deploy": {
+    "startCommand": "npx prisma generate && ts-node --transpile-only src/server.ts",
+    "restartPolicyType": "ON_FAILURE"
+  }
+}
