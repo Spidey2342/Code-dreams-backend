@@ -68,4 +68,33 @@ router.get("/leaderboard", requireAuth, async (req: AuthRequest, res: Response) 
   }
 });
 
+// ── GET /api/user/activity ──
+router.get("/activity", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const progress = await prisma.userProgress.findMany({
+      where: { userId: req.userId },
+      include: {
+        lesson: {
+          include: { track: true },
+        },
+      },
+      orderBy: { completedAt: "desc" },
+      take: 10,
+    });
+
+    const activity = progress.map((p) => ({
+      id: p.id,
+      lessonTitle: p.lesson.title,
+      trackName: p.lesson.track.name,
+      xpEarned: p.xpEarned,
+      completedAt: p.completedAt,
+      lessonOrder: p.lesson.order,
+    }));
+
+    res.json({ activity });
+  } catch (error) {
+    res.status(500).json({ error: "Something went wrong" });
+  }
+});
+
 export default router;
