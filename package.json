@@ -5,7 +5,7 @@
   "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
   "build": "echo 'skip'",
   "start": "ts-node --transpile-only src/server.ts",
-  "seed": "ts-node-dev --transpile-only prisma/seed.ts"
+ "seed": "node prisma/seed.js"
 },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
