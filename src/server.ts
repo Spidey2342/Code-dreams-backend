@@ -7,6 +7,7 @@ import aiRoutes from "./routes/ai";
 import trackRoutes from "./routes/tracks";
 import projectRoutes from "./routes/projects";
 import paymentRoutes from "./routes/payments";
+import codeRoutes from "./routes/code";
 import certificateRoutes from "./routes/certificates";
 
 // add with the other routes
@@ -32,6 +33,7 @@ app.use("/api/tracks", trackRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/certificates", certificateRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/code", codeRoutes);
 
 // ── Health check ──
 app.get("/api/health", (_req, res) => {
