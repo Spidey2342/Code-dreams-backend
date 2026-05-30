@@ -47,20 +47,22 @@ Python runs everywhere — on your laptop, on servers, in the cloud. The code yo
         ],
         exerciseDescription: "Write your first Python program. Use print() to display a greeting with your name. Then print your university and your goal for learning Python. Run the code to see the output in the terminal.",
         hint: "print() takes text inside quotes. Try: print('Hello, my name is Kofi')",
-        exercise: `# Welcome to Python!
-// The print() function displays output in the terminal
+       exercise: `# Welcome to Python!
+# The print() function displays output in the terminal
 
-// Step 1: Print a greeting with your name
+# Step 1: Print a greeting with your name
 print("Hello, my name is Kofi Mensah")
 
-// Step 2: Print your university
+# Step 2: Print your university
 print("I study at University of Ghana")
 
-// Step 3: Print your goal
+# Step 3: Print your goal
 print("I am learning Python to build real projects")
 
-// Try changing the text above and click RUN to see the output
-// Everything after a # symbol is a comment — Python ignores it`,
+# Try changing the text above and click RUN to see the output
+# Everything after a # symbol is a comment - Python ignores it`,
+
+
         quiz: [
           { q: "Which function displays output in Python?", options: ["show()", "display()", "print()", "output()"], answer: 2 },
           { q: "What symbol starts a comment in Python?", options: ["//", "/*", "#", "--"], answer: 2 },
