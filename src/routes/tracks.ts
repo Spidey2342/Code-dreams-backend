@@ -25,6 +25,8 @@ router.get("/:slug/lessons", requireAuth, async (req: AuthRequest, res: Response
     const track = await prisma.track.findUnique({ where: { slug } });
     if (!track) { res.status(404).json({ error: "Track not found" }); return; }
 
+    const user = await prisma.user.findUnique({ where: { id: req.userId! } });
+
     const lessons = await prisma.lesson.findMany({
       where: { trackId: track.id },
       orderBy: { order: "asc" },
@@ -44,7 +46,7 @@ router.get("/:slug/lessons", requireAuth, async (req: AuthRequest, res: Response
     const lessonsWithProgress = lessons.map((l) => ({
       ...l,
       completed: completedIds.has(l.id),
-      locked: !l.isFree && false, // pro gating comes later
+      locked: l.order >= 19 && !user?.isPro,
     }));
 
     res.json({ track, lessons: lessonsWithProgress });
