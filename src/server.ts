@@ -8,7 +8,10 @@ import trackRoutes from "./routes/tracks";
 import projectRoutes from "./routes/projects";
 import paymentRoutes from "./routes/payments";
 import codeRoutes from "./routes/code";
+// import oauthRoutes from "./routes/oauth";
 import certificateRoutes from "./routes/certificates";
+import session from "express-session";
+import passport from "./config/passport";
 
 // add with the other routes
 
@@ -24,7 +27,13 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
-
+// after app.use(express.json()):
+app.use(session({
+  secret: process.env.SESSION_SECRET!,
+  resave: false,
+  saveUninitialized: false,
+}));
+app.use(passport.initialize());
 // ── Routes ──
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
@@ -34,6 +43,7 @@ app.use("/api/projects", projectRoutes);
 app.use("/api/certificates", certificateRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/code", codeRoutes);
+// app.use("/api/auth", oauthRoutes);
 
 // ── Health check ──
 app.get("/api/health", (_req, res) => {
