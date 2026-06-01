@@ -41,15 +41,12 @@ router.get("/me", requireAuth, async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: "Something went wrong" });
   }
 });
-
-// ── GET /api/user/leaderboard ──
 router.get("/leaderboard", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const users = await prisma.user.findMany({
       include: {
         progress: true,
       },
-      take: 10,
     });
 
     const ranked = users
@@ -59,7 +56,9 @@ router.get("/leaderboard", requireAuth, async (req: AuthRequest, res: Response) 
         totalXP: u.progress.reduce((sum, p) => sum + p.xpEarned, 0),
         isYou: u.id === req.userId,
       }))
+      .filter((u) => u.totalXP > 0) // only show users with XP
       .sort((a, b) => b.totalXP - a.totalXP)
+      .slice(0, 10) // take top 10 AFTER sorting
       .map((u, i) => ({ ...u, rank: i + 1 }));
 
     res.json({ leaderboard: ranked });
