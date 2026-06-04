@@ -1,15 +1,51 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM = `${process.env.FROM_NAME || "CodePath Ghana"} <${process.env.FROM_EMAIL || "onboarding@resend.dev"}>`;
-const FRONTEND_URL = process.env.FRONTEND_URL || "https://code-dreams.vercel.app";
+// Lazy init — the client is created on first use, not at module load,
+// so a late-loading env var can never crash the server on startup.
+let _resend: Resend | null = null;
+
+function getResend(): Resend {
+  if (!_resend) {
+    const key = process.env.RESEND_API_KEY;
+    if (!key) {
+      throw new Error("RESEND_API_KEY is not set");
+    }
+    _resend = new Resend(key);
+  }
+  return _resend;
+}
+
+const FROM = () =>
+  `${process.env.FROM_NAME || "CodePath Ghana"} <${process.env.FROM_EMAIL || "onboarding@resend.dev"}>`;
+const FRONTEND_URL = () => process.env.FRONTEND_URL || "https://code-dreams.vercel.app";
+
+// Shared send helper. The Resend SDK returns { data, error } and does NOT
+// throw on API rejections, so we MUST inspect `error` ourselves. Without this,
+// failed sends (e.g. the sandbox restriction on onboarding@resend.dev) pass
+// silently and never appear in any log.
+async function send(to: string, subject: string, html: string) {
+  const { data, error } = await getResend().emails.send({
+    from: FROM(),
+    to,
+    subject,
+    html,
+  });
+
+  if (error) {
+    console.error("Resend send FAILED:", JSON.stringify(error));
+    throw new Error(`Resend error: ${(error as any).message || JSON.stringify(error)}`);
+  }
+
+  console.log("Email sent OK:", { to, subject, id: data?.id });
+  return data;
+}
 
 export async function sendWelcomeEmail(name: string, email: string) {
-  await resend.emails.send({
-    from: FROM,
-    to: email,
-    subject: "Welcome to CodePath Ghana 🇬🇭",
-    html: `
+  const url = FRONTEND_URL();
+  await send(
+    email,
+    "Welcome to CodePath Ghana 🇬🇭",
+    `
       <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;background:#0a0a0f;color:#f8fafc;padding:40px 32px;border-radius:16px">
         <div style="margin-bottom:32px">
           <div style="background:#6366f1;width:40px;height:40px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px">
@@ -35,24 +71,24 @@ export async function sendWelcomeEmail(name: string, email: string) {
           </div>
         </div>
 
-        <a href="${FRONTEND_URL}/lessons?track=html-css" style="display:block;background:#6366f1;color:white;text-decoration:none;text-align:center;padding:14px;border-radius:8px;font-weight:600;font-size:15px;margin-bottom:24px">
+        <a href="${url}/lessons?track=html-css" style="display:block;background:#6366f1;color:white;text-decoration:none;text-align:center;padding:14px;border-radius:8px;font-weight:600;font-size:15px;margin-bottom:24px">
           Start Lesson 1 Now →
         </a>
 
         <p style="color:#475569;font-size:13px;text-align:center;margin:0">
-          Built for Ghanaian students · <a href="${FRONTEND_URL}" style="color:#6366f1">code-dreams.vercel.app</a>
+          Built for Ghanaian students · <a href="${url}" style="color:#6366f1">code-dreams.vercel.app</a>
         </p>
       </div>
-    `,
-  });
+    `
+  );
 }
 
 export async function sendNudgeEmail(name: string, email: string) {
-  await resend.emails.send({
-    from: FROM,
-    to: email,
-    subject: "You signed up but haven't started yet 👀",
-    html: `
+  const url = FRONTEND_URL();
+  await send(
+    email,
+    "You signed up but haven't started yet 👀",
+    `
       <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;background:#0a0a0f;color:#f8fafc;padding:40px 32px;border-radius:16px">
         <h1 style="font-size:22px;font-weight:700;margin:0 0 12px;color:#f8fafc">Hey ${name}, don't let this sit 👋</h1>
         <p style="color:#94a3b8;font-size:15px;line-height:1.6;margin:0 0 24px">You created a CodePath Ghana account but haven't started your first lesson yet.</p>
@@ -62,24 +98,24 @@ export async function sendNudgeEmail(name: string, email: string) {
           <p style="margin:0;color:#94a3b8;font-size:14px;line-height:1.6">You'll write your first HTML page, see it render live in your browser, and earn your first 50 XP. No downloads. Works on your phone.</p>
         </div>
 
-        <a href="${FRONTEND_URL}/lessons?track=html-css" style="display:block;background:#6366f1;color:white;text-decoration:none;text-align:center;padding:14px;border-radius:8px;font-weight:600;font-size:15px;margin-bottom:24px">
+        <a href="${url}/lessons?track=html-css" style="display:block;background:#6366f1;color:white;text-decoration:none;text-align:center;padding:14px;border-radius:8px;font-weight:600;font-size:15px;margin-bottom:24px">
           Start Lesson 1 Free →
         </a>
 
         <p style="color:#475569;font-size:13px;text-align:center;margin:0">
-          CodePath Ghana · <a href="${FRONTEND_URL}" style="color:#6366f1">code-dreams.vercel.app</a>
+          CodePath Ghana · <a href="${url}" style="color:#6366f1">code-dreams.vercel.app</a>
         </p>
       </div>
-    `,
-  });
+    `
+  );
 }
 
 export async function sendAlmostProEmail(name: string, email: string, lessonsCompleted: number) {
-  await resend.emails.send({
-    from: FROM,
-    to: email,
-    subject: `You're ${18 - lessonsCompleted} lessons away from Pro content 🔥`,
-    html: `
+  const url = FRONTEND_URL();
+  await send(
+    email,
+    `You're ${18 - lessonsCompleted} lessons away from Pro content 🔥`,
+    `
       <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;background:#0a0a0f;color:#f8fafc;padding:40px 32px;border-radius:16px">
         <h1 style="font-size:22px;font-weight:700;margin:0 0 12px;color:#f8fafc">You're so close, ${name}! 🏁</h1>
         <p style="color:#94a3b8;font-size:15px;line-height:1.6;margin:0 0 24px">
@@ -100,28 +136,28 @@ export async function sendAlmostProEmail(name: string, email: string, lessonsCom
           </div>
         </div>
 
-        <a href="${FRONTEND_URL}/lessons?track=html-css" style="display:block;background:#6366f1;color:white;text-decoration:none;text-align:center;padding:14px;border-radius:8px;font-weight:600;font-size:15px;margin-bottom:12px">
+        <a href="${url}/lessons?track=html-css" style="display:block;background:#6366f1;color:white;text-decoration:none;text-align:center;padding:14px;border-radius:8px;font-weight:600;font-size:15px;margin-bottom:12px">
           Continue Learning →
         </a>
 
-        <a href="${FRONTEND_URL}/pricing" style="display:block;background:transparent;color:#6366f1;text-decoration:none;text-align:center;padding:14px;border-radius:8px;font-weight:600;font-size:15px;border:1px solid rgba(99,102,241,0.3);margin-bottom:24px">
+        <a href="${url}/pricing" style="display:block;background:transparent;color:#6366f1;text-decoration:none;text-align:center;padding:14px;border-radius:8px;font-weight:600;font-size:15px;border:1px solid rgba(99,102,241,0.3);margin-bottom:24px">
           View Pro Plans →
         </a>
 
         <p style="color:#475569;font-size:13px;text-align:center;margin:0">
-          CodePath Ghana · <a href="${FRONTEND_URL}" style="color:#6366f1">code-dreams.vercel.app</a>
+          CodePath Ghana · <a href="${url}" style="color:#6366f1">code-dreams.vercel.app</a>
         </p>
       </div>
-    `,
-  });
+    `
+  );
 }
 
 export async function sendPaymentConfirmationEmail(name: string, email: string) {
-  await resend.emails.send({
-    from: FROM,
-    to: email,
-    subject: "You're now Pro! Welcome to the advanced track 🎉",
-    html: `
+  const url = FRONTEND_URL();
+  await send(
+    email,
+    "You're now Pro! Welcome to the advanced track 🎉",
+    `
       <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;background:#0a0a0f;color:#f8fafc;padding:40px 32px;border-radius:16px">
         <div style="text-align:center;margin-bottom:32px">
           <div style="font-size:48px;margin-bottom:16px">🎉</div>
@@ -139,14 +175,14 @@ export async function sendPaymentConfirmationEmail(name: string, email: string) 
           `).join("")}
         </div>
 
-        <a href="${FRONTEND_URL}/dashboard" style="display:block;background:#6366f1;color:white;text-decoration:none;text-align:center;padding:14px;border-radius:8px;font-weight:600;font-size:15px;margin-bottom:24px">
+        <a href="${url}/dashboard" style="display:block;background:#6366f1;color:white;text-decoration:none;text-align:center;padding:14px;border-radius:8px;font-weight:600;font-size:15px;margin-bottom:24px">
           Go to Dashboard →
         </a>
 
         <p style="color:#475569;font-size:13px;text-align:center;margin:0">
-          GHS 80/month · Cancel anytime from Settings · <a href="${FRONTEND_URL}" style="color:#6366f1">code-dreams.vercel.app</a>
+          GHS 80/month · Cancel anytime from Settings · <a href="${url}" style="color:#6366f1">code-dreams.vercel.app</a>
         </p>
       </div>
-    `,
-  });
+    `
+  );
 }
