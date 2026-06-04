@@ -3,7 +3,10 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import passport from "../config/passport";
 import { prisma } from "../../lib/prisma";
-import session from "express-session";
+
+import { sendWelcomeEmail } from "../lib/email";
+
+
 
 const router = Router();
 
@@ -40,6 +43,12 @@ router.post("/register", async (req: Request, res: Response) => {
     });
 
     await prisma.userStreak.create({ data: { userId: user.id } });
+
+    try {
+  await sendWelcomeEmail(user.name, user.email);
+} catch (emailErr) {
+  console.error("Welcome email failed:", emailErr);
+}
 
     const token = generateToken(user.id);
 

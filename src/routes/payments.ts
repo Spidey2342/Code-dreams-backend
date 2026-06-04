@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import { prisma } from "../../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/authMiddleware";
 import crypto from "crypto";
+import { sendPaymentConfirmationEmail } from "../lib/email";
 
 const router = Router();
 
@@ -80,11 +81,18 @@ router.post("/webhook", async (req, res: Response) => {
       });
 
       await prisma.user.update({
-        where: { id: userId },
-        data: { isPro: true },
-      });
+  where: { id: userId },
+  data: { isPro: true },
+});
 
-      console.log(`✅ User ${userId} upgraded to Pro`);
+try {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (user) await sendPaymentConfirmationEmail(user.name, user.email);
+} catch (emailErr) {
+  console.error("Payment confirmation email failed:", emailErr);
+}
+
+console.log(`✅ User ${userId} upgraded to Pro`);
     }
 
     res.json({ received: true });
@@ -111,6 +119,13 @@ router.get("/verify/:reference", requireAuth, async (req: AuthRequest, res: Resp
         where: { id: req.userId },
         data: { isPro: true },
       });
+
+try {
+  const user = await prisma.user.findUnique({ where: { id: req.userId! } });
+  if (user) await sendPaymentConfirmationEmail(user.name, user.email);
+} catch (emailErr) {
+  console.error("Payment email failed:", emailErr);
+}
 
       await prisma.payment.update({
         where: { paystackRef: reference },

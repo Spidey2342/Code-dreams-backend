@@ -3,6 +3,7 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as GitHubStrategy } from "passport-github2";
 import { prisma } from "../../lib/prisma";
 
+
 passport.use(
   new GoogleStrategy(
     {
@@ -29,6 +30,12 @@ passport.use(
 
           // Create streak for new user
           await prisma.userStreak.create({ data: { userId: user.id } });
+          try {
+  const { sendWelcomeEmail } = await import("../lib/email");
+  await sendWelcomeEmail(user.name, user.email);
+} catch (emailErr) {
+  console.error("Welcome email failed:", emailErr);
+}
         }
 
         return done(null, user);

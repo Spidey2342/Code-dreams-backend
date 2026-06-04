@@ -80,9 +80,17 @@ router.post("/:slug/lessons/:id/complete", requireAuth, async (req: AuthRequest,
 
     const lesson = await prisma.lesson.findUnique({ where: { id } });
     if (!lesson) { res.status(404).json({ error: "Lesson not found" }); return; }
+// Block completion of Pro lessons for non-Pro users
+if (lesson.order >= 19) {
+  const user = await prisma.user.findUnique({ where: { id: req.userId! } });
+  if (!user?.isPro) {
+    res.status(403).json({ error: "Pro subscription required" });
+    return;
+  }
+}
 
-    // Check if already completed
-    const existing = await prisma.userProgress.findUnique({
+// Check if already completed
+const existing = await prisma.userProgress.findUnique({
       where: { userId_lessonId: { userId: req.userId!, lessonId: id } },
     });
 
