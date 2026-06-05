@@ -24,6 +24,8 @@ model User {
   payments      Payment[]
   accounts      Account[]
   sessions      Session[]
+  resetTokenHash    String?
+  resetTokenExpiry  DateTime?
 }
 
 model Track {

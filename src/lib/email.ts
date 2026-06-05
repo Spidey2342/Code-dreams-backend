@@ -186,3 +186,24 @@ export async function sendPaymentConfirmationEmail(name: string, email: string) 
     `
   );
 }
+
+export async function sendPasswordResetEmail(name: string, email: string, resetUrl: string) {
+  await send(
+    email,
+    "Reset your CodePath Ghana password",
+    `
+      <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;background:#0a0a0f;color:#f8fafc;padding:40px 32px;border-radius:16px">
+        <h1 style="font-size:22px;font-weight:700;margin:0 0 12px;color:#f8fafc">Reset your password, ${name}</h1>
+        <p style="color:#94a3b8;font-size:15px;line-height:1.6;margin:0 0 24px">
+          We got a request to reset your CodePath Ghana password. Click below to choose a new one. This link expires in 1 hour.
+        </p>
+        <a href="${resetUrl}" style="display:block;background:#6366f1;color:white;text-decoration:none;text-align:center;padding:14px;border-radius:8px;font-weight:600;font-size:15px;margin-bottom:24px">
+          Reset Password →
+        </a>
+        <p style="color:#475569;font-size:13px;line-height:1.6;margin:0">
+          If you didn't request this, you can safely ignore this email — your password won't change.
+        </p>
+      </div>
+    `
+  );
+}
