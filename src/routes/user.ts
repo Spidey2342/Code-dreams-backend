@@ -44,11 +44,10 @@ router.get("/me", requireAuth, async (req: AuthRequest, res: Response) => {
 router.get("/leaderboard", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const users = await prisma.user.findMany({
-      include: {
-        progress: true,
-      },
+      include: { progress: true },
     });
 
+    // Rank EVERYONE first (rank is global), then slice for display
     const ranked = users
       .map((u) => ({
         id: u.id,
@@ -56,12 +55,14 @@ router.get("/leaderboard", requireAuth, async (req: AuthRequest, res: Response) 
         totalXP: u.progress.reduce((sum, p) => sum + p.xpEarned, 0),
         isYou: u.id === req.userId,
       }))
-      .filter((u) => u.totalXP > 0) // only show users with XP
+      .filter((u) => u.totalXP > 0)
       .sort((a, b) => b.totalXP - a.totalXP)
-      .slice(0, 10) // take top 10 AFTER sorting
-      .map((u, i) => ({ ...u, rank: i + 1 }));
+      .map((u, i) => ({ ...u, rank: i + 1 })); // rank assigned to ALL
 
-    res.json({ leaderboard: ranked });
+    const leaderboard = ranked.slice(0, 50);          // top 50 for display
+    const currentUser = ranked.find((u) => u.isYou) || null; // your real rank
+
+    res.json({ leaderboard, currentUser, totalUsers: ranked.length });
   } catch (error) {
     res.status(500).json({ error: "Something went wrong" });
   }
