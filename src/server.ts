@@ -44,7 +44,16 @@ app.use("/api/certificates", certificateRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/code", codeRoutes);
 // app.use("/api/auth", oauthRoutes);
-
+app.get("/api/admin/seed-js", async (req, res) => {
+  if (req.query.secret !== process.env.SEED_SECRET) { res.status(403).json({ error: "forbidden" }); return; }
+  try {
+    const { seedJavaScript } = require("../prisma/seedJavaScript");
+    await seedJavaScript();
+    res.json({ ok: true, message: "JS track seeded" });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
 // ── Health check ──
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", message: "CodePath API is running" });
