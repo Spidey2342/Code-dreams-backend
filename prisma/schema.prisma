@@ -26,6 +26,11 @@ model User {
   sessions      Session[]
   resetTokenHash    String?
   resetTokenExpiry  DateTime?
+  referralCode          String?  @unique
+  referredById          String?
+  referralQualified     Boolean  @default(false)
+  bonusLessonsUnlocked  Int      @default(0)
+  referralCodeExpiry  DateTime?
 }
 
 model Track {

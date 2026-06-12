@@ -43,11 +43,12 @@ router.get("/:slug/lessons", requireAuth, async (req: AuthRequest, res: Response
 
     const completedIds = new Set(progress.map((p) => p.lessonId));
 
-    const lessonsWithProgress = lessons.map((l) => ({
-      ...l,
-      completed: completedIds.has(l.id),
-      locked: l.order >= 19 && !user?.isPro,
-    }));
+   const bonus = Math.min(user?.bonusLessonsUnlocked ?? 0, 3);
+const lessonsWithProgress = lessons.map((l) => ({
+  ...l,
+  completed: completedIds.has(l.id),
+  locked: l.order >= 19 + bonus && !user?.isPro,
+}));
 
     res.json({ track, lessons: lessonsWithProgress });
   } catch (error) {
@@ -78,22 +79,36 @@ router.post("/:slug/lessons/:id/complete", requireAuth, async (req: AuthRequest,
   try {
     const { id } = req.params;
 
-    const lesson = await prisma.lesson.findUnique({ where: { id } });
-    if (!lesson) { res.status(404).json({ error: "Lesson not found" }); return; }
-// Block completion of Pro lessons for non-Pro users
-if (lesson.order >= 19) {
-  const user = await prisma.user.findUnique({ where: { id: req.userId! } });
-  if (!user?.isPro) {
-    res.status(403).json({ error: "Pro subscription required" });
-    return;
-  }
+ const lesson = await prisma.lesson.findUnique({ where: { id } });
+if (!lesson) { res.status(404).json({ error: "Lesson not found" }); return; }
+
+const me = await prisma.user.findUnique({ where: { id: req.userId! } });
+const bonus = Math.min(me?.bonusLessonsUnlocked ?? 0, 3);
+
+// Block Pro lessons (respecting referral bonus unlocks)
+if (lesson.order >= 19 + bonus && !me?.isPro) {
+  res.status(403).json({ error: "Pro subscription required" });
+  return;
 }
 
 // Check if already completed
 const existing = await prisma.userProgress.findUnique({
       where: { userId_lessonId: { userId: req.userId!, lessonId: id } },
     });
-
+// Referral: the first lesson a referred user completes rewards their referrer
+if (me?.referredById && !me.referralQualified) {
+  await prisma.user.update({
+    where: { id: me.id },
+    data: { referralQualified: true },
+  });
+  const referrer = await prisma.user.findUnique({ where: { id: me.referredById } });
+  if (referrer && referrer.bonusLessonsUnlocked < 3) {
+    await prisma.user.update({
+      where: { id: referrer.id },
+      data: { bonusLessonsUnlocked: referrer.bonusLessonsUnlocked + 1 },
+    });
+  }
+}
     if (existing) {
       res.json({ message: "Already completed", xpEarned: 0 });
       return;

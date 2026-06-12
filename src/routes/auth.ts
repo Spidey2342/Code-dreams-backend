@@ -21,7 +21,7 @@ const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 // ── POST /api/auth/register ──
 router.post("/register", async (req: Request, res: Response) => {
   try {
-    const { name, email, password } = req.body;
+const { name, email, password, ref } = req.body;
 
     if (!name || !email || !password) {
       res.status(400).json({ error: "Name, email and password are required" });
@@ -41,9 +41,19 @@ router.post("/register", async (req: Request, res: Response) => {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    const user = await prisma.user.create({
-      data: { name, email, passwordHash },
-    });
+   let referredById: string | null = null;
+if (ref) {
+  const referrer = await prisma.user.findUnique({
+    where: { referralCode: ref.trim().toUpperCase() },
+  });
+  if (referrer && referrer.referralCodeExpiry && referrer.referralCodeExpiry > new Date()) {
+    referredById = referrer.id;
+  }
+}
+
+const user = await prisma.user.create({
+  data: { name, email, passwordHash, referredById },
+});
 
     await prisma.userStreak.create({ data: { userId: user.id } });
 

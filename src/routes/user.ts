@@ -2,6 +2,13 @@ import { Router, Response } from "express";
 import { prisma } from "../../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/authMiddleware";
 
+function generateReferralCode() {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no ambiguous 0/O/1/I
+  let code = "";
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
 const router = Router();
 
 // ── GET /api/user/me ──
@@ -25,7 +32,7 @@ router.get("/me", requireAuth, async (req: AuthRequest, res: Response) => {
 
     const totalXP = user.progress.reduce((sum, p) => sum + p.xpEarned, 0);
 
-    res.json({
+   res.json({
       id: user.id,
       name: user.name,
       email: user.email,
@@ -35,6 +42,7 @@ router.get("/me", requireAuth, async (req: AuthRequest, res: Response) => {
       longestStreak: user.streak?.longestStreak || 0,
       completedLessons: user.progress.length,
       certificates: user.certificates.length,
+      bonusLessonsUnlocked: user.bonusLessonsUnlocked,
     });
   } catch (error) {
     console.error("Me error:", error);
@@ -145,6 +153,64 @@ router.delete("/delete", requireAuth, async (req: AuthRequest, res: Response) =>
     res.json({ message: "Account deleted" });
   } catch (error) {
     res.status(500).json({ error: "Failed to delete account" });
+  }
+});
+
+// ── GET /api/user/referral ──
+router.get("/referral", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+    const now = new Date();
+    const active = !!(user.referralCode && user.referralCodeExpiry && user.referralCodeExpiry > now);
+    const FRONTEND_URL = process.env.FRONTEND_URL || "https://code-dreams.vercel.app";
+
+    const invited = await prisma.user.count({ where: { referredById: user.id } });
+    const qualified = await prisma.user.count({ where: { referredById: user.id, referralQualified: true } });
+
+    res.json({
+      code: active ? user.referralCode : null,
+      link: active ? `${FRONTEND_URL}/signup?ref=${user.referralCode}` : null,
+      expiresAt: active ? user.referralCodeExpiry : null,
+      invited,
+      qualified,
+      bonusUnlocked: user.bonusLessonsUnlocked,
+      cap: 3,
+    });
+  } catch (error) {
+    console.error("Referral error:", error);
+    res.status(500).json({ error: "Something went wrong" });
+  }
+});
+
+// ── POST /api/user/referral — user sets/refreshes their own code ──
+router.post("/referral", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const clean = (req.body.code || "").trim().toUpperCase();
+    if (!/^[A-Z0-9]{4,20}$/.test(clean)) {
+      res.status(400).json({ error: "Code must be 4–20 letters or numbers, no spaces." });
+      return;
+    }
+
+    // Unique — but you can re-claim your own
+    const taken = await prisma.user.findUnique({ where: { referralCode: clean } });
+    if (taken && taken.id !== req.userId) {
+      res.status(409).json({ error: "That code is already taken. Try another." });
+      return;
+    }
+
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours
+    await prisma.user.update({
+      where: { id: req.userId! },
+      data: { referralCode: clean, referralCodeExpiry: expiresAt },
+    });
+
+    const FRONTEND_URL = process.env.FRONTEND_URL || "https://code-dreams.vercel.app";
+    res.json({ code: clean, link: `${FRONTEND_URL}/signup?ref=${clean}`, expiresAt });
+  } catch (error) {
+    console.error("Set referral error:", error);
+    res.status(500).json({ error: "Something went wrong" });
   }
 });
 
