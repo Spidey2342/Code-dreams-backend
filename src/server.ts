@@ -47,7 +47,7 @@ app.use("/api/code", codeRoutes);
 app.get("/api/admin/seed-js", async (req, res) => {
   if (req.query.secret !== process.env.SEED_SECRET) { res.status(403).json({ error: "forbidden" }); return; }
   try {
-    const { seedJavaScript } = require("../prisma/seedJavaScript");
+    const { seedJavaScript } = require("../prisma/seedJavascript");
     await seedJavaScript();
     res.json({ ok: true, message: "JS track seeded" });
   } catch (e) {
